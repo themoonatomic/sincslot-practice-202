@@ -22,10 +22,7 @@ app = FastAPI(lifespan=lifespan, title="Syncslot backend")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",
-        "http://localhost"
-    ],
+    allow_origins=["http://localhost:5173", "http://localhost"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -34,8 +31,5 @@ app.add_middleware(
 app.include_router(routes)
 
 if __name__ == "__main__":
-    logging.info(f'Start server: {settings.run.port}')
-    uvicorn.run("main:app",
-                host=settings.run.host,
-                port=settings.run.port,
-                reload=True)
+    logging.info(f"Start server: {settings.run.port}")
+    uvicorn.run("main:app", host=settings.run.host, port=settings.run.port, reload=True)
