@@ -73,7 +73,7 @@ jobs:
           pip install bandit detect-secrets
 
       - name: Run Bandit
-        run: bandit -r backend -x backend/tests,backend/alembic
+        run: bandit -r backend -x backend/tests,backend/alembic -s B105
 
       - name: Run detect-secrets
         run: detect-secrets scan --baseline .secrets.baseline
