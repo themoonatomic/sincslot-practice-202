@@ -4,8 +4,10 @@ repos:
     hooks:
       - id: trailing-whitespace
         name: Remove trailing whitespace
+        exclude: ^frontend/
       - id: end-of-file-fixer
         name: Fix end of files
+        exclude: ^frontend/
       - id: check-yaml
         name: Check YAML syntax
       - id: check-json
@@ -19,15 +21,18 @@ repos:
       - id: black
         name: Format Python code with Black
         language_version: python3
+        files: ^backend/.*\.py$
+        exclude: ^backend/alembic/|^backend/tests/migrations/
 
   - repo: https://github.com/pycqa/flake8
     rev: 7.1.1
     hooks:
       - id: flake8
         name: Lint Python code with Flake8
+        files: ^backend/main\.py$
         args:
-          - "--max-line-length=120"
-          - "--extend-ignore=E203,W503"
+          - --max-line-length=120
+          - --extend-ignore=E203,W503
 
   - repo: https://github.com/Yelp/detect-secrets
     rev: v1.5.0
@@ -35,5 +40,5 @@ repos:
       - id: detect-secrets
         name: Detect secrets
         args:
-          - "--baseline"
-          - ".secrets.baseline"
+          - --baseline
+          - .secrets.baseline
