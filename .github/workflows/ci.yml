@@ -30,7 +30,7 @@ jobs:
           POSTGRES_USER: pguser_test
           POSTGRES_PASSWORD: pgpassword_test
         ports:
-          - 54349:5432
+          - 5432:5432
         options: >-
           --health-cmd="pg_isready -U pguser_test -d syncslot_db_test"
           --health-interval=10s
@@ -50,6 +50,10 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Set up host aliases
+        run: |
+          echo "127.0.0.1 db_test syncslot_db_test syncslot_db cache" | sudo tee -a /etc/hosts
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -75,29 +79,32 @@ jobs:
         env:
           PYTHONPATH: ${{ github.workspace }}
 
+          SYNC_SLOT__DB__URL: postgresql+asyncpg://pguser_test:pgpassword_test@localhost:5432/syncslot_db_test
+          SYNC_SLOT__DB_TEST__URL: postgresql+asyncpg://pguser_test:pgpassword_test@localhost:5432/syncslot_db_test
+
           POSTGRES_DB: syncslot_db_test
           POSTGRES_USER: pguser_test
           POSTGRES_PASSWORD: pgpassword_test
           POSTGRES_HOST: localhost
-          POSTGRES_PORT: 54349
+          POSTGRES_PORT: 5432
 
           DB_NAME: syncslot_db_test
           DB_USER: pguser_test
           DB_PASSWORD: pgpassword_test
           DB_HOST: localhost
-          DB_PORT: 54349
+          DB_PORT: 5432
 
           DATABASE_NAME: syncslot_db_test
           DATABASE_USER: pguser_test
           DATABASE_PASSWORD: pgpassword_test
           DATABASE_HOST: localhost
-          DATABASE_PORT: 54349
+          DATABASE_PORT: 5432
 
           TEST_POSTGRES_DB: syncslot_db_test
           TEST_POSTGRES_USER: pguser_test
           TEST_POSTGRES_PASSWORD: pgpassword_test
           TEST_POSTGRES_HOST: localhost
-          TEST_POSTGRES_PORT: 54349
+          TEST_POSTGRES_PORT: 5432
 
           REDIS_HOST: localhost
           REDIS_PORT: 6379
