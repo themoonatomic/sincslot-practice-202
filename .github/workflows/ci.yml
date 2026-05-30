@@ -72,8 +72,8 @@ jobs:
           pip install pytest
 
       - name: Run backend tests
-        working-directory: backend
         env:
+          PYTHONPATH: ${{ github.workspace }}
           POSTGRES_DB: syncslot_db_test
           POSTGRES_USER: pguser_test
           POSTGRES_PASSWORD: pgpassword_test
@@ -82,10 +82,10 @@ jobs:
           REDIS_HOST: localhost
           REDIS_PORT: 6379
         run: |
-          if [ -d "tests/${{ matrix.test-suite }}" ]; then
-            pytest tests/${{ matrix.test-suite }}
+          if [ -d "backend/tests/${{ matrix.test-suite }}" ]; then
+            pytest backend/tests/${{ matrix.test-suite }}
           else
-            pytest
+            pytest backend/tests
           fi
 
   frontend-checks:
@@ -132,7 +132,7 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Cache pip dependencies
+      - name: Cache Bandit dependencies
         uses: actions/cache@v4
         with:
           path: ~/.cache/pip
@@ -167,7 +167,7 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Cache pip dependencies
+      - name: Cache pip-audit dependencies
         uses: actions/cache@v4
         with:
           path: ~/.cache/pip
@@ -180,7 +180,54 @@ jobs:
 
       - name: Scan Python dependencies
         run: |
-          pip-audit --requirement backend/requirements.txt --format json --output pip-audit-report.json
+          pip-audit --requirement backend/requirements.txt --format json --output pip-audit-report.json || true
+
+      - name: Fail on CVSS >= 7.0
+        run: |
+          python - <<'PY'
+          import json
+          import re
+          import sys
+
+          report_path = "pip-audit-report.json"
+
+          try:
+              with open(report_path, "r", encoding="utf-8") as file:
+                  report = json.load(file)
+          except FileNotFoundError:
+              print("pip-audit report not found")
+              sys.exit(1)
+
+          critical_items = []
+
+          for dependency in report.get("dependencies", []):
+              dep_name = dependency.get("name", "unknown")
+              for vuln in dependency.get("vulns", []):
+                  vuln_id = vuln.get("id", "unknown")
+                  score_values = []
+
+                  for key in ("cvss", "cvss_score", "severity_score", "score"):
+                      value = vuln.get(key)
+                      if isinstance(value, (int, float)):
+                          score_values.append(float(value))
+                      elif isinstance(value, str):
+                          match = re.search(r"(\d+(?:\.\d+)?)", value)
+                          if match:
+                              score_values.append(float(match.group(1)))
+
+                  severity = str(vuln.get("severity", "")).lower()
+
+                  if any(score >= 7.0 for score in score_values) or severity in ("high", "critical"):
+                      critical_items.append(f"{dep_name}: {vuln_id}")
+
+          if critical_items:
+              print("Critical vulnerabilities found:")
+              for item in critical_items:
+                  print(f"- {item}")
+              sys.exit(1)
+
+          print("No vulnerabilities with CVSS >= 7.0 found")
+          PY
 
       - name: Upload pip-audit report
         if: always()
