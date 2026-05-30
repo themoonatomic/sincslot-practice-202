@@ -74,11 +74,31 @@ jobs:
       - name: Run backend tests
         env:
           PYTHONPATH: ${{ github.workspace }}
+
           POSTGRES_DB: syncslot_db_test
           POSTGRES_USER: pguser_test
           POSTGRES_PASSWORD: pgpassword_test
           POSTGRES_HOST: localhost
           POSTGRES_PORT: 54349
+
+          DB_NAME: syncslot_db_test
+          DB_USER: pguser_test
+          DB_PASSWORD: pgpassword_test
+          DB_HOST: localhost
+          DB_PORT: 54349
+
+          DATABASE_NAME: syncslot_db_test
+          DATABASE_USER: pguser_test
+          DATABASE_PASSWORD: pgpassword_test
+          DATABASE_HOST: localhost
+          DATABASE_PORT: 54349
+
+          TEST_POSTGRES_DB: syncslot_db_test
+          TEST_POSTGRES_USER: pguser_test
+          TEST_POSTGRES_PASSWORD: pgpassword_test
+          TEST_POSTGRES_HOST: localhost
+          TEST_POSTGRES_PORT: 54349
+
           REDIS_HOST: localhost
           REDIS_PORT: 6379
         run: |
