@@ -10,6 +10,7 @@ from backend.repository.booking_repository import IBookingRepository
 from backend.repository.company_repository import ICompanyRepository
 from backend.repository.service_repository import IServiceRepository
 from backend.core.config import CalendarSchedule
+from backend.core.metrics import booking_created_total
 
 
 class IBookingUseCase(ABC):
@@ -86,7 +87,17 @@ class BookingUseCase(IBookingUseCase):
             client_id: int,
             time_start: datetime,
             time_end: datetime):
-        return await self.booking_repository.save_booking(session, service_id, client_id, time_start, time_end)
+        booking = await self.booking_repository.save_booking(
+            session,
+            service_id,
+            client_id,
+            time_start,
+            time_end,
+        )
+
+        booking_created_total.inc()
+
+        return booking
 
     async def is_booking_time_in_work_schedule(
             self,
