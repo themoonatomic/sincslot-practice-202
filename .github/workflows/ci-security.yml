@@ -1,0 +1,165 @@
+name: DevSecOps Security Pipeline
+
+on:
+  push:
+    branches:
+      - practice-207-devsecops
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  secret-detection:
+    name: Secret Detection with Gitleaks
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout full history
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Prepare artifacts directory
+        run: mkdir -p artifacts
+
+      - name: Run Gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          config-path: gitleaks.toml
+          report-format: json
+          report-path: artifacts/gitleaks-report.json
+          verbose: true
+
+      - name: Upload Gitleaks report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gitleaks-report
+          path: artifacts/gitleaks-report.json
+
+  sca-scan:
+    name: SCA scan with Trivy FS
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Prepare artifacts directory
+        run: mkdir -p artifacts
+
+      - name: Generate Trivy FS JSON report
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: fs
+          scan-ref: .
+          format: json
+          severity: CRITICAL,HIGH,MEDIUM,LOW
+          output: artifacts/trivy-fs-report.json
+          exit-code: 0
+
+      - name: Upload Trivy FS report
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-fs-report
+          path: artifacts/trivy-fs-report.json
+
+      - name: Security gate for filesystem scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: fs
+          scan-ref: .
+          format: table
+          severity: CRITICAL
+          exit-code: 1
+
+  sbom-generation:
+    name: Generate SBOM
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Prepare artifacts directory
+        run: mkdir -p artifacts
+
+      - name: Generate SBOM with Syft
+        uses: anchore/sbom-action@v0
+        with:
+          path: .
+          format: cyclonedx-json
+          output-file: artifacts/sbom.json
+
+      - name: Upload SBOM
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom
+          path: artifacts/sbom.json
+
+  build-docker:
+    name: Build Docker image
+    runs-on: ubuntu-latest
+    needs:
+      - secret-detection
+      - sca-scan
+      - sbom-generation
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Build backend Docker image
+        run: docker build -t sincslot-backend:${{ github.sha }} -f backend/Dockerfile .
+
+      - name: Save Docker image
+        run: docker save sincslot-backend:${{ github.sha }} -o sincslot-backend.tar
+
+      - name: Upload Docker image artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sincslot-backend-image
+          path: sincslot-backend.tar
+
+  image-scan:
+    name: Docker image scan with Trivy
+    runs-on: ubuntu-latest
+    needs:
+      - build-docker
+
+    steps:
+      - name: Download Docker image artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: sincslot-backend-image
+
+      - name: Load Docker image
+        run: docker load -i sincslot-backend.tar
+
+      - name: Prepare artifacts directory
+        run: mkdir -p artifacts
+
+      - name: Generate Trivy image JSON report
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: sincslot-backend:${{ github.sha }}
+          format: json
+          severity: CRITICAL,HIGH,MEDIUM,LOW
+          output: artifacts/trivy-image-report.json
+          exit-code: 0
+
+      - name: Upload Trivy image report
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-image-report
+          path: artifacts/trivy-image-report.json
+
+      - name: Security gate for Docker image
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: sincslot-backend:${{ github.sha }}
+          format: table
+          severity: CRITICAL,HIGH
+          exit-code: 1
