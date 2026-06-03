@@ -112,7 +112,8 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Build backend Docker image
-        run: docker build -t sincslot-backend:${{ github.sha }} -f backend/Dockerfile .
+        run: docker build -t sincslot-backend:${{ github.sha }} -f Dockerfile .
+        working-directory: backend
 
       - name: Save Docker image
         run: docker save sincslot-backend:${{ github.sha }} -o sincslot-backend.tar
